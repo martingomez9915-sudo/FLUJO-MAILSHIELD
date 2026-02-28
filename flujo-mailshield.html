@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MailShield — Flujo para 1,000 Usuarios</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --bg: #030712;
+  --bg2: #0a0f1e;
+  --blue: #3b82f6;
+  --blue-bright: #60a5fa;
+  --green: #22c55e;
+  --red: #ef4444;
+  --orange: #f97316;
+  --purple: #a78bfa;
+  --cyan: #22d3ee;
+  --text: #f1f5f9;
+  --muted: #64748b;
+  --border: rgba(59,130,246,0.2);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image:
+    linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events:none;
+  z-index:0;
+}
+
+.page {
+  position: relative;
+  z-index: 1;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 60px 40px;
+}
+
+/* HEADER */
+.header {
+  text-align: center;
+  margin-bottom: 70px;
+}
+
+.tag {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--blue);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+h1 {
+  font-size: clamp(32px, 5vw, 56px);
+  font-weight: 800;
+  letter-spacing: -2px;
+  line-height: 1.05;
+  margin-bottom: 16px;
+}
+
+.accent { color: var(--blue-bright); }
+
+.subtitle {
+  font-size: 17px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* SCALE BADGE */
+.scale-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 20px;
+  background: rgba(59,130,246,0.08);
+  border: 1px solid rgba(59,130,246,0.25);
+  border-radius: 12px;
+  padding: 20px 32px;
+  margin: 0 auto 70px;
+  width: 100%;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 32px;
+}
+
+.scale-item {
+  text-align: center;
+}
+
+.scale-num {
+  font-family: 'Space Mono', monospace;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--blue-bright);
+  display: block;
+  letter-spacing: -1px;
+}
+
+.scale-label {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.scale-divider {
+  width: 1px;
+  height: 40px;
+  background: var(--border);
+}
+
+/* FLOW */
+.flow-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--blue);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+}
+
+.flow-section {
+  margin-bottom: 48px;
+}
+
+.flow-section-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  font-family: 'Space Mono', monospace;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.flow-section-label::after {
+  content:'';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* NODES */
+.nodes {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  position: relative;
+}
+
+.node {
+  flex: 1;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px 20px;
+  position: relative;
+  transition: all 0.25s;
+  cursor: default;
+}
+
+.node:hover {
+  border-color: var(--blue);
+  background: #0f172a;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px rgba(59,130,246,0.15);
+  z-index: 2;
+}
+
+.node-icon { font-size: 28px; margin-bottom: 12px; display: block; }
+
+.node-num {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--blue);
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+
+.node h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  letter-spacing: -0.3px;
+}
+
+.node p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+.node .tech {
+  margin-top: 12px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--blue-bright);
+  background: rgba(59,130,246,0.1);
+  padding: 4px 10px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+/* ARROW */
+.arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  flex-shrink: 0;
+  color: var(--blue);
+  font-size: 18px;
+  position: relative;
+  z-index: 1;
+}
+
+.arrow::before {
+  content:'';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 1px;
+  height: 60%;
+  background: var(--border);
+}
+
+/* VERTICAL FLOW */
+.v-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.v-node {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  transition: all 0.25s;
+  cursor: default;
+}
+
+.v-node:hover {
+  border-color: var(--blue);
+  background: #0f172a;
+  transform: translateX(4px);
+  box-shadow: 0 4px 20px rgba(59,130,246,0.12);
+}
+
+.v-node-icon { font-size: 24px; flex-shrink: 0; margin-top: 2px; }
+
+.v-node-content h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.v-node-content p { font-size: 12px; color: var(--muted); line-height: 1.5; font-weight: 400; }
+.v-node-content .tech {
+  margin-top: 8px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--blue-bright);
+  background: rgba(59,130,246,0.1);
+  padding: 3px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.v-arrow {
+  text-align: center;
+  color: var(--blue);
+  padding: 6px 0;
+  font-size: 16px;
+  position: relative;
+}
+
+.v-arrow::before {
+  content:'';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+  transform: translateX(-50%);
+  z-index: 0;
+}
+
+.v-arrow span { position: relative; z-index: 1; background: var(--bg); padding: 0 4px; }
+
+/* COSTS */
+.costs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 48px;
+}
+
+.cost-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  transition: all 0.25s;
+}
+
+.cost-card:hover {
+  border-color: var(--blue);
+  transform: translateY(-3px);
+}
+
+.cost-service {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+
+.cost-amount {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  margin-bottom: 4px;
+}
+
+.cost-desc {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+  font-weight: 400;
+}
+
+.cost-card.green .cost-amount { color: var(--green); }
+.cost-card.orange .cost-amount { color: var(--orange); }
+.cost-card.red .cost-amount { color: var(--red); }
+.cost-card.blue .cost-amount { color: var(--blue-bright); }
+.cost-card.purple .cost-amount { color: var(--purple); }
+
+/* PROFIT */
+.profit-box {
+  background: rgba(34,197,94,0.05);
+  border: 1px solid rgba(34,197,94,0.3);
+  border-radius: 16px;
+  padding: 40px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0;
+  margin-bottom: 48px;
+  text-align: center;
+}
+
+.profit-item { padding: 0 20px; }
+.profit-item + .profit-item { border-left: 1px solid rgba(34,197,94,0.2); }
+
+.profit-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+}
+
+.profit-num {
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: -2px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.profit-sub { font-size: 13px; color: var(--muted); font-weight: 400; }
+
+.profit-item.income .profit-num { color: var(--blue-bright); }
+.profit-item.costs .profit-num { color: var(--orange); }
+.profit-item.net .profit-num { color: var(--green); }
+
+/* TIMELINE */
+.timeline {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 48px;
+}
+
+.tl-item {
+  background: var(--bg2);
+  padding: 28px 20px;
+  transition: background 0.2s;
+}
+
+.tl-item:hover { background: #0f172a; }
+
+.tl-phase {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--blue);
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+
+.tl-time {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+}
+
+.tl-desc {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+/* RISK */
+.risks {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 60px;
+}
+
+.risk-card {
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid;
+}
+
+.risk-card.low {
+  background: rgba(34,197,94,0.05);
+  border-color: rgba(34,197,94,0.25);
+}
+
+.risk-card.mid {
+  background: rgba(249,115,22,0.05);
+  border-color: rgba(249,115,22,0.25);
+}
+
+.risk-card.high {
+  background: rgba(239,68,68,0.05);
+  border-color: rgba(239,68,68,0.25);
+}
+
+.risk-level {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.risk-card.low .risk-level { color: var(--green); }
+.risk-card.mid .risk-level { color: var(--orange); }
+.risk-card.high .risk-level { color: var(--red); }
+
+.risk-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+.risk-card p { font-size: 12px; color: var(--muted); line-height: 1.5; font-weight: 400; }
+
+/* FOOTER NOTE */
+.footer-note {
+  text-align: center;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  padding-top: 32px;
+}
+
+/* COLOR DOTS */
+.dot-green { color: var(--green); }
+.dot-orange { color: var(--orange); }
+.dot-blue { color: var(--blue-bright); }
+.dot-red { color: var(--red); }
+.dot-purple { color: var(--purple); }
+
+/* Animations */
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(20px); }
+  to { opacity:1; transform:translateY(0); }
+}
+
+.page > * {
+  animation: fadeUp 0.5s ease both;
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="tag">// Arquitectura de negocio</div>
+    <h1>MailShield a <span class="accent">1,000 usuarios</span></h1>
+    <p class="subtitle">Flujo completo: técnico, financiero y operativo</p>
+  </div>
+
+  <!-- SCALE NUMBERS -->
+  <div class="scale-badge">
+    <div class="scale-item">
+      <span class="scale-num">1,000</span>
+      <span class="scale-label">Clientes activos</span>
+    </div>
+    <div class="scale-divider"></div>
+    <div class="scale-item">
+      <span class="scale-num">100,000</span>
+      <span class="scale-label">Correos analizados/mes</span>
+    </div>
+    <div class="scale-divider"></div>
+    <div class="scale-item">
+      <span class="scale-num">$30K+</span>
+      <span class="scale-label">Ingresos mensuales</span>
+    </div>
+    <div class="scale-divider"></div>
+    <div class="scale-item">
+      <span class="scale-num">~$3K</span>
+      <span class="scale-label">Costos totales/mes</span>
+    </div>
+    <div class="scale-divider"></div>
+    <div class="scale-item">
+      <span class="scale-num dot-green">~$27K</span>
+      <span class="scale-label">Ganancia neta/mes</span>
+    </div>
+  </div>
+
+  <!-- FASE 1: USUARIO SE REGISTRA -->
+  <div class="flow-section">
+    <div class="flow-section-label">Fase 1 — El usuario se registra</div>
+    <div class="nodes">
+      <div class="node">
+        <span class="node-icon">🌐</span>
+        <div class="node-num">01</div>
+        <h3>Landing Page</h3>
+        <p>El usuario entra a mailshield.com, ve el producto y hace clic en "Empezar gratis"</p>
+        <span class="tech">Tu sitio web</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="node">
+        <span class="node-icon">📧</span>
+        <div class="node-num">02</div>
+        <h3>Ingresa su email</h3>
+        <p>Pone su correo y se crea una cuenta en tu sistema con su plan elegido</p>
+        <span class="tech">Base de datos</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="node">
+        <span class="node-icon">🔐</span>
+        <div class="node-num">03</div>
+        <h3>OAuth con Google</h3>
+        <p>Google muestra su pantalla oficial. El usuario aprueba el acceso. TÚ nunca ves su contraseña</p>
+        <span class="tech">Gmail API OAuth 2.0</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="node">
+        <span class="node-icon">🎟️</span>
+        <div class="node-num">04</div>
+        <h3>Token guardado</h3>
+        <p>Google te da un token de acceso. Lo guardas cifrado en tu base de datos para usarlo mensualmente</p>
+        <span class="tech">PostgreSQL cifrado</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="node">
+        <span class="node-icon">💳</span>
+        <div class="node-num">05</div>
+        <h3>Pago suscripción</h3>
+        <p>El usuario paga $30/mes. Se activa su cuenta y queda en cola para el próximo análisis</p>
+        <span class="tech">Stripe</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- FASE 2: ANÁLISIS AUTOMÁTICO -->
+  <div class="flow-section">
+    <div class="flow-section-label">Fase 2 — Análisis automático (cada mes, para los 1,000 usuarios)</div>
+    <div class="nodes">
+      <div class="node">
+        <span class="node-icon">⏰</span>
+        <div class="node-num">01</div>
+        <h3>Scheduler activa</h3>
+        <p>Un cron job diario revisa qué usuarios les toca análisis ese mes y los pone en cola</p>
+        <span class="tech">Cron Job / Railway</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="node">
+        <span class="node-icon">📬</span>
+        <div class="node-num">02</div>
+        <h3>Cola de trabajo</h3>
+        <p>Los 1,000 usuarios entran a una cola. Se procesan de 50 en 50 para no sobrecargar el sistema</p>
+        <span class="tech">Redis Queue</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="node">
+        <span class="node-icon">📥</span>
+        <div class="node-num">03</div>
+        <h3>Descarga correos</h3>
+        <p>Con el token OAuth descarga los últimos 100 correos de cada usuario vía Gmail API</p>
+        <span class="tech">Gmail API</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="node">
+        <span class="node-icon">🤖</span>
+        <div class="node-num">04</div>
+        <h3>Claude AI analiza</h3>
+        <p>Cada correo es analizado. Se detecta phishing, fraude, spam malicioso. Score del 0 al 100</p>
+        <span class="tech">Claude API (Anthropic)</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="node">
+        <span class="node-icon">📊</span>
+        <div class="node-num">05</div>
+        <h3>Genera informe</h3>
+        <p>Se crea un PDF/email con el resumen: cuántos seguros, sospechosos y peligrosos encontrados</p>
+        <span class="tech">Python / Node.js</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- FASE 3: ENTREGA -->
+  <div class="flow-section">
+    <div class="flow-section-label">Fase 3 — Entrega del resultado al usuario</div>
+    <div class="nodes">
+      <div class="node">
+        <span class="node-icon">📨</span>
+        <div class="node-num">01</div>
+        <h3>Email automático</h3>
+        <p>El informe se envía al correo del usuario. Diseño profesional con los hallazgos del mes</p>
+        <span class="tech">SendGrid / Resend</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="node">
+        <span class="node-icon">🖥️</span>
+        <div class="node-num">02</div>
+        <h3>Dashboard web</h3>
+        <p>El usuario puede ver el historial de análisis, correos marcados y tendencias en su panel</p>
+        <span class="tech">React / Next.js</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="node">
+        <span class="node-icon">🔔</span>
+        <div class="node-num">03</div>
+        <h3>Alerta urgente</h3>
+        <p>Si detecta un correo con score mayor a 85, envía alerta inmediata sin esperar el mes</p>
+        <span class="tech">Webhook en tiempo real</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="node">
+        <span class="node-icon">💾</span>
+        <div class="node-num">04</div>
+        <h3>Guarda historial</h3>
+        <p>Todos los análisis quedan guardados. El usuario puede ver evolución mes a mes</p>
+        <span class="tech">PostgreSQL</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="node">
+        <span class="node-icon">🔄</span>
+        <div class="node-num">05</div>
+        <h3>Se repite sólo</h3>
+        <p>El próximo mes, mientras el usuario paga, el ciclo se repite automáticamente. Cero intervención</p>
+        <span class="tech">Fully automated</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- COSTOS -->
+  <div class="flow-section">
+    <div class="flow-section-label">Costos mensuales reales para 1,000 usuarios</div>
+    <div class="costs">
+      <div class="cost-card blue">
+        <div class="cost-service">CLAUDE API</div>
+        <div class="cost-amount">~$800</div>
+        <div class="cost-desc">100k correos × promedio de tokens. El costo más alto pero el corazón del producto</div>
+      </div>
+      <div class="cost-card orange">
+        <div class="cost-service">SERVIDOR (Railway/Render)</div>
+        <div class="cost-amount">~$150</div>
+        <div class="cost-desc">Backend + base de datos + colas Redis. Escala automático según demanda</div>
+      </div>
+      <div class="cost-card green">
+        <div class="cost-service">GMAIL API</div>
+        <div class="cost-amount">$0</div>
+        <div class="cost-desc">Gratis hasta límites muy altos. Para 1,000 usuarios no hay costo</div>
+      </div>
+      <div class="cost-card purple">
+        <div class="cost-service">EMAILS (SendGrid)</div>
+        <div class="cost-amount">~$50</div>
+        <div class="cost-desc">1,000 informes + alertas. SendGrid tiene tier gratuito hasta 100/día</div>
+      </div>
+      <div class="cost-card orange">
+        <div class="cost-service">STRIPE COMISIÓN</div>
+        <div class="cost-amount">~$900</div>
+        <div class="cost-desc">2.9% + $0.30 por transacción. Para $30k/mes aproximadamente $900</div>
+      </div>
+      <div class="cost-card blue">
+        <div class="cost-service">DOMINIO + SSL + MISC</div>
+        <div class="cost-amount">~$50</div>
+        <div class="cost-desc">Dominio anual, certificados, monitoreo, backups automáticos</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROFIT -->
+  <div class="flow-section">
+    <div class="flow-section-label">Matemáticas del negocio (Plan Starter promedio $30/mes)</div>
+    <div class="profit-box">
+      <div class="profit-item income">
+        <div class="profit-label">INGRESOS BRUTOS</div>
+        <div class="profit-num">$30K</div>
+        <div class="profit-sub">1,000 usuarios × $30/mes</div>
+      </div>
+      <div class="profit-item costs">
+        <div class="profit-label">COSTOS TOTALES</div>
+        <div class="profit-num">~$2K</div>
+        <div class="profit-sub">API + Servidor + Stripe + Email</div>
+      </div>
+      <div class="profit-item net">
+        <div class="profit-label">GANANCIA NETA</div>
+        <div class="profit-num">~$28K</div>
+        <div class="profit-sub">Margen del 93% — altamente escalable</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIMELINE -->
+  <div class="flow-section">
+    <div class="flow-section-label">Hoja de ruta para llegar a 1,000 usuarios</div>
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-phase">MES 1-2</div>
+        <div class="tl-time">MVP</div>
+        <div class="tl-desc">Construir el sistema básico. OAuth + Gmail API + Claude + informe por email. Primeros 10 usuarios beta gratis</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-phase">MES 3-4</div>
+        <div class="tl-time">Lanzamiento</div>
+        <div class="tl-desc">Lanzar con pago real. Meta: 50-100 clientes. Validar que la gente paga. Ajustar el producto</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-phase">MES 5-8</div>
+        <div class="tl-time">Crecimiento</div>
+        <div class="tl-desc">100-500 usuarios. Dashboard web, plan Business, alianzas con contadores y abogados en Cali</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-phase">MES 9-12</div>
+        <div class="tl-time">Escala</div>
+        <div class="tl-desc">500-1,000 usuarios. Plan Enterprise, análisis de adjuntos, expansión Colombia → LATAM</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIESGOS -->
+  <div class="flow-section">
+    <div class="flow-section-label">Riesgos a considerar</div>
+    <div class="risks">
+      <div class="risk-card low">
+        <div class="risk-level">✅ RIESGO BAJO</div>
+        <h3>Tecnología probada</h3>
+        <p>OAuth de Google, Claude AI y Stripe son herramientas maduras usadas por millones de empresas. No estás inventando nada desde cero.</p>
+      </div>
+      <div class="risk-card mid">
+        <div class="risk-level">⚠️ RIESGO MEDIO</div>
+        <h3>Costo de Claude sube si crece</h3>
+        <p>A más usuarios más tokens de API. Debes monitorear el costo por usuario y ajustar precios si Anthropic sube tarifas.</p>
+      </div>
+      <div class="risk-card high">
+        <div class="risk-level">🚨 RIESGO ALTO</div>
+        <h3>Google puede revocar acceso</h3>
+        <p>Si tu app no pasa la verificación de Google o viola políticas, pueden suspenderte. Debes pasar la revisión de seguridad de Google Cloud.</p>
+      </div>
+      <div class="risk-card low">
+        <div class="risk-level">✅ RIESGO BAJO</div>
+        <h3>Competencia</h3>
+        <p>Hay antivirus grandes, pero ninguno hace exactamente esto: informe mensual con IA, simple y barato para LATAM.</p>
+      </div>
+      <div class="risk-card mid">
+        <div class="risk-level">⚠️ RIESGO MEDIO</div>
+        <h3>Privacidad y datos</h3>
+        <p>Necesitas una política de privacidad sólida. Los usuarios confían sus correos a ti. Cumplir GDPR/Habeas Data Colombia.</p>
+      </div>
+      <div class="risk-card low">
+        <div class="risk-level">✅ RIESGO BAJO</div>
+        <h3>Churn (cancelaciones)</h3>
+        <p>Si el producto detecta amenazas reales el primer mes, el usuario tiene razón para quedarse. El valor se demuestra solo.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    MailShield · Arquitectura para 1,000 usuarios · Cali, Colombia · 2026<br>
+    <span style="color:var(--blue-bright)">Con $30/usuario promedio → margen del ~93% a escala</span>
+  </div>
+
+</div>
+</body>
+</html>
